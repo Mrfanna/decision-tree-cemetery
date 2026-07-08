@@ -49,6 +49,23 @@
   const customModal = $('custom-modal');
   const editModal = $('edit-modal');
 
+  // ---------- 主题切换 ----------
+  const THEME_KEY = 'cemetery-theme-v1';
+  function applyTheme(theme) {
+    document.body.classList.remove('theme-cemetery', 'theme-light');
+    document.body.classList.add(theme);
+    const btn = $('btn-theme');
+    if (btn) btn.textContent = theme === 'theme-light' ? '☀ 明亮模式' : '✦ 墓园模式';
+  }
+  applyTheme(loadJSON(THEME_KEY, 'theme-cemetery'));
+  if ($('btn-theme')) {
+    $('btn-theme').addEventListener('click', () => {
+      const next = document.body.classList.contains('theme-light') ? 'theme-cemetery' : 'theme-light';
+      applyTheme(next);
+      saveJSON(THEME_KEY, next);
+    });
+  }
+
   // ======================== 顶部与全局按钮 ========================
   $('btn-plant').addEventListener('click', () => plantNewTree(seedInput.value));
 

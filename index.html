@@ -7,12 +7,13 @@
 <link rel="stylesheet" href="styles.css">
 <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
-<body>
+<body class="theme-cemetery">
   <header class="top-bar">
     <div class="title">
       <span class="rune">✦</span>
       <h1>决策树的可视化墓园</h1>
-      <span class="subtitle">— 让每一个选择，都有归宿 —</span>
+      <span class="subtitle" id="subtitle-text">— 让每一个选择，都有归宿 —</span>
+      <button id="btn-theme" class="ghost-btn theme-btn" title="切换主题">◐ 切换主题</button>
     </div>
     <div class="controls">
       <button id="btn-new" class="ghost-btn" title="新建一棵命运之树">↺ 新树</button>
