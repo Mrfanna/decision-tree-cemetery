@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>决策树的可视化墓园</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header class="top-bar">
+    <div class="title">
+      <span class="rune">✦</span>
+      <h1>决策树的可视化墓园</h1>
+      <span class="subtitle">— 让每一个选择，都有归宿 —</span>
+    </div>
+    <div class="controls">
+      <button id="btn-new" class="ghost-btn" title="新建一棵命运之树">↺ 新树</button>
+      <button id="btn-expand" class="ghost-btn" title="展开全部">⤢ 展开</button>
+      <button id="btn-collapse" class="ghost-btn" title="折叠根节点之外">⤡ 折叠</button>
+      <button id="btn-center" class="ghost-btn" title="回到根节点">◎ 居中</button>
+      <button id="btn-walk" class="ghost-btn" title="走一条路：让树自己生长一条随机命运">✧ 走一条路</button>
+      <button id="btn-snapshot" class="ghost-btn" title="保存当前树的快照，供时间旅行">⏳ 快照</button>
+      <button id="btn-export-png" class="ghost-btn" title="导出PNG">▣ PNG</button>
+      <button id="btn-export-json" class="ghost-btn" title="导出JSON">❖ JSON</button>
+      <button id="btn-import" class="ghost-btn" title="导入JSON">⇱ 导入</button>
+      <input type="file" id="file-import" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="side-panel left-panel">
+      <div class="panel-section">
+        <h2>✧ 种下一颗种子</h2>
+        <p class="hint">写下你正在犹豫的决策，让它成为命运之树的根。</p>
+        <textarea id="seed-input" rows="3" placeholder="例如：要不要换工作？"></textarea>
+        <button id="btn-plant" class="primary-btn">✦ 生根发芽</button>
+      </div>
+
+      <div class="panel-section">
+        <h2>✧ 当前节点</h2>
+        <div id="node-detail" class="node-detail empty">
+          <p class="empty-tip">点击右侧树上任意节点，查看其命运。</p>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2>✧ 情感调色板</h2>
+        <div class="legend">
+          <div class="legend-item"><span class="dot positive"></span>积极 · 光明</div>
+          <div class="legend-item"><span class="dot neutral"></span>中性 · 迷雾</div>
+          <div class="legend-item"><span class="dot negative"></span>消极 · 阴影</div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="canvas-wrap">
+      <svg id="tree-canvas"></svg>
+      <div class="tip-overlay" id="tip-overlay">
+        <div class="tip-text">拖动节点 · 滚轮缩放 · 点击查看命运</div>
+      </div>
+    </section>
+
+    <aside class="side-panel right-panel">
+      <div class="panel-section">
+        <h2>✧ 你走过的路</h2>
+        <div id="history-list" class="history-list"></div>
+        <button id="btn-clear-history" class="ghost-btn small">清空足迹</button>
+      </div>
+      <div class="panel-section">
+        <h2>✧ 时间旅行</h2>
+        <p class="hint">保存多个快照，随时跳回那一刻的树。</p>
+        <button id="btn-snapshot-local" class="ghost-btn small" style="width:100%; margin-bottom:6px;">⏳ 保存此刻</button>
+        <div id="snapshot-list" class="snapshot-list"></div>
+      </div>
+      <div class="panel-section">
+        <h2>✧ 树的统计</h2>
+        <div id="stats" class="stats">
+          <div class="stat"><span class="label">节点</span><span class="val" id="stat-nodes">0</span></div>
+          <div class="stat"><span class="label">最深层</span><span class="val" id="stat-depth">0</span></div>
+          <div class="stat"><span class="label">光明</span><span class="val positive" id="stat-pos">0</span></div>
+          <div class="stat"><span class="label">阴影</span><span class="val negative" id="stat-neg">0</span></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="context-menu" class="context-menu" hidden>
+    <div class="cm-item" data-action="expand">✦ 展开 / 刷新分支</div>
+    <div class="cm-item" data-action="custom">✎ 手写一个分支</div>
+    <div class="cm-item" data-action="edit">✐ 编辑此节点</div>
+    <div class="cm-item" data-action="collapse">⤡ 折叠子节点</div>
+    <div class="cm-item" data-action="prune">✂ 从此剪断</div>
+    <div class="cm-divider"></div>
+    <div class="cm-item" data-action="path">✧ 高亮通往此处的路</div>
+    <div class="cm-item" data-action="focus">◎ 聚焦到此节点</div>
+  </div>
+
+  <!-- 故事弹窗 -->
+  <div id="story-modal" class="modal" hidden>
+    <div class="modal-inner">
+      <div class="modal-title">✦ 命运为你写下</div>
+      <div id="story-content" class="story-content"></div>
+      <div class="modal-actions">
+        <button id="btn-story-copy" class="ghost-btn small">⧉ 复制故事</button>
+        <button id="btn-story-close" class="ghost-btn small">✕ 关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义分支输入弹窗 -->
+  <div id="custom-modal" class="modal" hidden>
+    <div class="modal-inner">
+      <div class="modal-title">✎ 写下你自己的分支</div>
+      <p class="hint">给这个节点起一个标题，描述它代表的未来；或留空让 AI 代笔。</p>
+      <input id="custom-title" class="modal-input" placeholder="标题（例：先去旅行一年）" />
+      <textarea id="custom-desc" class="modal-input" rows="3" placeholder="描述（可选）"></textarea>
+      <div class="sentiment-picker">
+        <label class="sm-opt"><input type="radio" name="custom-sent" value="positive"> 光明</label>
+        <label class="sm-opt"><input type="radio" name="custom-sent" value="neutral" checked> 迷雾</label>
+        <label class="sm-opt"><input type="radio" name="custom-sent" value="negative"> 阴影</label>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-custom-cancel" class="ghost-btn small">✕ 取消</button>
+        <button id="btn-custom-confirm" class="primary-btn" style="margin:0; padding:6px 18px;">✦ 写入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑节点弹窗 -->
+  <div id="edit-modal" class="modal" hidden>
+    <div class="modal-inner">
+      <div class="modal-title">✐ 改写此刻</div>
+      <input id="edit-title" class="modal-input" placeholder="标题" />
+      <textarea id="edit-desc" class="modal-input" rows="3" placeholder="描述"></textarea>
+      <div class="sentiment-picker">
+        <label class="sm-opt"><input type="radio" name="edit-sent" value="positive"> 光明</label>
+        <label class="sm-opt"><input type="radio" name="edit-sent" value="neutral"> 迷雾</label>
+        <label class="sm-opt"><input type="radio" name="edit-sent" value="negative"> 阴影</label>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-edit-cancel" class="ghost-btn small">✕ 取消</button>
+        <button id="btn-edit-confirm" class="primary-btn" style="margin:0; padding:6px 18px;">✦ 保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 悬浮情绪模式按钮 -->
+  <div id="mood-bar" class="mood-bar">
+    <span class="mood-label">风</span>
+    <button class="mood-btn" data-mood="random" title="随机生长">◐</button>
+    <button class="mood-btn" data-mood="positive" title="偏光明生长">☀</button>
+    <button class="mood-btn" data-mood="negative" title="偏阴影生长">☁</button>
+    <button class="mood-btn" data-mood="balanced" title="平衡生长">✦</button>
+    <span class="mood-label">向</span>
+  </div>
+
+  <footer class="bottom-bar">
+    <span>© 决策树墓园 · 在无限分叉中，照见自己 · 快捷键：Space=展开所选 · N=新树 · W=走一条路</span>
+  </footer>
+
+  <script src="branch-generator.js"></script>
+  <script src="tree-visualizer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
